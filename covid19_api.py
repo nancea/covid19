@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 '''
-    flask_sample.py
-    Jeff Ondich, 22 April 2016
-    Updated 7 October 2020
-    A slightly more complicated Flask sample app than the
-    "hello world" app found at http://flask.pocoo.org/.
+    covid19_api.py
+
+    16 October 2020
 '''
 import sys
 import argparse
@@ -64,7 +62,6 @@ def get_state(state_abbreviation):
             'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
             state_info_list.append(state_info)
     return json.dumps(state_info_list)
-    #should work but won't find url
 
 @app.route('/state/<state_abbreviation>/cumulative')
 def get_state_cumulative(state_abbreviation):
@@ -84,13 +81,21 @@ def get_state_cumulative(state_abbreviation):
         print(e)
         exit()
     state_cumulative_info = {}
+    deaths = 0
+    positive_tests = 0
+    negative_tests = 0
+    hospitalizations = 0
     for row in cursor:
+       # new_deaths = row[2]
         if get_state_abbreviation(row[1]).startswith(state_abbreviation):
-            if get_state_abbreviation(row[1]) in state_cumulative_info:
-                state_cumulative_info = {}
-            else:
-                state_cumulative_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': int(row[2]), 
-                'new_positive_tests': int(row[3]), 'new_negative_tests': int(row[4]), 'new_hospitalizations': int(row[5])}
+            deaths += row[2]
+            positive_tests += row[3]
+            negative_tests += row[4]
+            hospitalizations += row[5]
+         #   if get_state_abbreviation(row[1]) in state_cumulative_info:
+          #      state_cumulative_info = {}
+    state_cumulative_info = {'start_date': str(row[0]), 'end_date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': deaths, \
+        'new_positive_tests': positive_tests, 'new_negative_tests': negative_tests, 'new_hospitalizations': hospitalizations}
     return json.dumps(state_cumulative_info)
     #how to get start_date and end_date??
     #also how to get cumulatiive?
@@ -107,6 +112,9 @@ def get_all_states():
     positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
     negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
     hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
+    deaths = flask.request.args.get('deaths')
+    cases = flask.request.args.get('cases')
+    hopsitalizations = flask.request.args.get('hospitalizations')
     try:
         cursor = connection.cursor()
         query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
@@ -120,7 +128,7 @@ def get_all_states():
         state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
         'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
   
-    return json.dumps()
+    return json.dumps(state_info)
     #sorting??
 
 if __name__ == '__main__':
