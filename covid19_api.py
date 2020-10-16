@@ -64,7 +64,7 @@ def get_state(abbreviation):
             'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
             state_info_list.append(state_info)
     return json.dumps(state_info_list)
-    #maybe this works? but won't find url
+    #should work but won't find url
 
 @app.route('/state/{state-abbreviation}/cumulative')
 def get_state_cumulative(abbreviation):
@@ -121,6 +121,7 @@ def get_all_states():
         'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
   
     return json.dumps()
+    #sorting??
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('A sample Flask application/API')
