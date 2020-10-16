@@ -13,33 +13,6 @@ import json
 
 app = flask.Flask(__name__)
 
-# Who needs a database when you can just hard-code some actors and movies?
-actors = [
-    {'last_name': 'Pickford', 'first_name': 'Mary'},
-    {'last_name': 'Rains', 'first_name': 'Claude'},
-    {'last_name': 'Lorre', 'first_name': 'Peter'},
-    {'last_name': 'Greenstreet', 'first_name': 'Sydney'},
-    {'last_name': 'Bergman', 'first_name': 'Ingrid'},
-    {'last_name': 'Grant', 'first_name': 'Cary'},
-    {'last_name': 'Colbert', 'first_name': 'Claudette'},
-    {'last_name': 'McDormand', 'first_name': 'Frances'},
-    {'last_name': 'Wiig', 'first_name': 'Kristen'},
-    {'last_name': 'Adams', 'first_name': 'Amy'}
-]
-
-movies = [
-    {'title': 'Casablanca', 'year': 1942, 'genre': 'drama'},
-    {'title': 'North By Northwest', 'year': 1959, 'genre': 'thriller'},
-    {'title': 'Selma', 'year': 2014, 'genre': 'drama'},
-    {'title': 'Alien', 'year': 1979, 'genre': 'scifi'},
-    {'title': 'Bridesmaids', 'year': 2011, 'genre': 'comedy'},
-    {'title': 'Arrival', 'year': 2016, 'genre': 'scifi'},
-    {'title': 'Booksmart', 'year': 2019, 'genre': 'comedy'},
-    {'title': 'It Happened One Night', 'year': 1934, 'genre': 'comedy'},
-    {'title': 'Fargo', 'year': 1996, 'genre': 'thriller'},
-    {'title': 'Clueless', 'year': 1995, 'genre': 'comedy'}
-]
-
 @app.route('/')
 def hello():
     return 'Hello, Citizen of CS257.'
