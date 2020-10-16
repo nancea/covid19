@@ -40,8 +40,8 @@ def get_state_abbreviation(state_id):
     state_abbreviation = abbreviations_dict[state_id]
     return state_abbreviation
 
-@app.route('/state/{state-abbreviation}/daily')
-def get_state(abbreviation):
+@app.route('/state/<state_abbreviation>/daily')
+def get_state(state_abbreviation):
     ''' Returns a list of dictionaries, each representing the COVID-19 statistics from the specified state on a single date. 
         date -- YYYY-MM-DD (e.g. "2020-10-08")
         state -- upper-case two-letter state abbreviation (e.g. "MN")
@@ -59,15 +59,15 @@ def get_state(abbreviation):
     state_info = {}
     state_info_list = []
     for row in cursor:
-        if get_state_abbreviation(row[1]).startswith(abbreviation):
+        if get_state_abbreviation(row[1]).startswith(state_abbreviation):
             state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
             'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
             state_info_list.append(state_info)
     return json.dumps(state_info_list)
     #should work but won't find url
 
-@app.route('/state/{state-abbreviation}/cumulative')
-def get_state_cumulative(abbreviation):
+@app.route('/state/<state_abbreviation>/cumulative')
+def get_state_cumulative(state_abbreviation):
     '''Returns a single dictionary representing the cumulative statistics for the specified state.
        start_date -- YYYY-MM-DD (e.g. "2020-10-08")
        end_date -- YYYY-MM-DD (e.g. "2020-03-11")
@@ -85,7 +85,7 @@ def get_state_cumulative(abbreviation):
         exit()
     state_cumulative_info = {}
     for row in cursor:
-        if get_state_abbreviation(row[1]).startswith(abbreviation):
+        if get_state_abbreviation(row[1]).startswith(state_abbreviation):
             if get_state_abbreviation(row[1]) in state_cumulative_info:
                 state_cumulative_info = {}
             else:
