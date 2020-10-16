@@ -6,9 +6,9 @@ reader=csv.reader(f)
 states={}
 for row in reader:
     state=row[1]
-    states[state]=0
+    states[state]=1
 
-state_abbreviations = list(states.keys())
+state_abbreviations = list(sorted(states.keys()))
 for k in range(len(state_abbreviations)):
     abbreviation=state_abbreviations[k]
     states[abbreviation]=k
