@@ -23,4 +23,3 @@ for row in reader:
    state_id=row[1]
    new_row=[row[0], states[state_id], row[2], row[3], row[4], row[5]]
    writer.writerow(new_row)
-   print(row) 
