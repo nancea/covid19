@@ -19,6 +19,7 @@ except Exception as e:
     exit()
 
 def get_abbreviations_dict():
+    '''Returns a dictionery of state abbreviations and state ids'''
     try:
         cursor = connection.cursor()
         query = 'SELECT abbreviation, id FROM states'
@@ -34,6 +35,7 @@ def get_abbreviations_dict():
     return abbreviations_dict
 
 def get_state_abbreviation(state_id):
+    '''Returns the corresponding state abbreviation given a state id'''
     abbreviations_dict = get_abbreviations_dict()
     state_abbreviation = abbreviations_dict[state_id]
     return state_abbreviation
@@ -49,7 +51,7 @@ def get_state(state_abbreviation):
         hospitalizations -- (integer) the number of new hospitalizations for COVID-19 on this date'''
     try:
         cursor = connection.cursor()
-        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
         cursor.execute(query)
     except Exception as e:
         print(e)
@@ -57,9 +59,10 @@ def get_state(state_abbreviation):
     state_info = {}
     state_info_list = []
     for row in cursor:
-        if get_state_abbreviation(row[1]).startswith(state_abbreviation):
-            state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
-            'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
+        state = get_state_abbreviation(row[1])
+        if state.startswith(state_abbreviation):
+            state_info = {'date': str(row[0]), 'state': state, 'deaths': str(row[2]), 'positive_tests': str(row[3]),
+            'negative_tests': str(row[4]), 'hospitalizations': str(row[5])}
             state_info_list.append(state_info)
     return json.dumps(state_info_list)
 
@@ -75,30 +78,40 @@ def get_state_cumulative(state_abbreviation):
        hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
     try:
         cursor = connection.cursor()
-        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
         cursor.execute(query)
     except Exception as e:
         print(e)
         exit()
     state_cumulative_info = {}
+    state_list = []
+    date_list = []
     deaths = 0
     positive_tests = 0
     negative_tests = 0
     hospitalizations = 0
     for row in cursor:
-       # new_deaths = row[2]
-        if get_state_abbreviation(row[1]).startswith(state_abbreviation):
-            deaths += row[2]
-            positive_tests += row[3]
-            negative_tests += row[4]
-            hospitalizations += row[5]
-         #   if get_state_abbreviation(row[1]) in state_cumulative_info:
-          #      state_cumulative_info = {}
-    state_cumulative_info = {'start_date': str(row[0]), 'end_date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': deaths, \
-        'new_positive_tests': positive_tests, 'new_negative_tests': negative_tests, 'new_hospitalizations': hospitalizations}
+        state = get_state_abbreviation(row[1])
+        if state.startswith(state_abbreviation):
+            if state in state_list:
+                deaths += row[2]
+                positive_tests += row[3]
+                negative_tests += row[4]
+                hospitalizations += row[5]
+                date_list.append(row[0])
+            else:
+                deaths = row[2]
+                positive_tests = row[3]
+                negative_tests = row[4]
+                hospitalizations = row[5]
+                state_list.append(state)
+                date_list.append(row[0])
+    start_date = str(date_list[-1])
+    end_date = str(date_list[0])
+    state_cumulative_info = {'start_date': start_date, 'end_date': end_date, 'state': state_abbreviation, 'deaths': deaths, \
+        'positive_tests': positive_tests, 'negative_tests': negative_tests, 'hospitalizations': hospitalizations}
     return json.dumps(state_cumulative_info)
-    #how to get start_date and end_date??
-    #also how to get cumulatiive?
+  
 
 @app.route('/states/cumulative')
 def get_all_states():
@@ -117,7 +130,7 @@ def get_all_states():
     hopsitalizations = flask.request.args.get('hospitalizations')
     try:
         cursor = connection.cursor()
-        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
         cursor.execute(query)
     except Exception as e:
         print(e)
@@ -125,8 +138,8 @@ def get_all_states():
 
     state_info = {}
     for row in cursor:
-        state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
-        'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
+        state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'positive_tests': str(row[3]),
+        'negative_tests': str(row[4]), 'hospitalizations': str(row[5])}
   
     return json.dumps(state_info)
     #sorting??
