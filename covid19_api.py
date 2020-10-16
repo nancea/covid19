@@ -10,55 +10,117 @@ import sys
 import argparse
 import flask
 import json
+import psycopg2
 
 app = flask.Flask(__name__)
 
-@app.route('/')
-def hello():
-    return 'Hello, Citizen of CS257.'
+try:
+    connection = psycopg2.connect(database = 'covid19')
+except Exception as e:
+    print(e)
+    exit()
 
-@app.route('/actor/<last_name>')
-def get_actor(last_name):
-    ''' Returns the first matching actor, or an empty dictionary if there's no match. '''
-    actor_dictionary = {}
-    lower_last_name = last_name.lower()
-    for actor in actors:
-        if actor['last_name'].lower().startswith(lower_last_name):
-            actor_dictionary = actor
-            break
-    return json.dumps(actor_dictionary)
+def get_abbreviations_dict():
+    try:
+        cursor = connection.cursor()
+        query = 'SELECT abbreviation, id FROM states'
+        cursor.execute(query)
+    except Exception as e:
+        print(e)
+        exit()
+    abbreviations_dict = {}
+    for row in cursor:
+        abbreviation = row[0]
+        id_num = row[1]
+        abbreviations_dict[id_num] = abbreviation
+    return abbreviations_dict
 
-@app.route('/movies')
-def get_movies():
-    ''' Returns the list of movies that match GET parameters:
-          start_year, int: reject any movie released earlier than this year
-          end_year, int: reject any movie released later than this year
-          genre: reject any movie whose genre does not match this genre exactly
-        If a GET parameter is absent, then any movie is treated as though
-        it meets the corresponding constraint. (That is, accept a movie unless
-        it is explicitly rejected by a GET parameter.)
-    '''
-    movie_list = []
-    genre = flask.request.args.get('genre')
-    start_year = flask.request.args.get('start_year', default=0, type=int)
-    end_year = flask.request.args.get('end_year', default=10000, type=int)
-    for movie in movies:
-        if genre is not None and genre != movie['genre']:
-            continue
-        if movie['year'] < start_year:
-            continue
-        if movie['year'] > end_year:
-            continue
-        movie_list.append(movie)
+def get_state_abbreviation(state_id):
+    abbreviations_dict = get_abbreviations_dict()
+    state_abbreviation = abbreviations_dict[state_id]
+    return state_abbreviation
 
-    return json.dumps(movie_list)
+@app.route('/state/{state-abbreviation}/daily')
+def get_state(abbreviation):
+    ''' Returns a list of dictionaries, each representing the COVID-19 statistics from the specified state on a single date. 
+        date -- YYYY-MM-DD (e.g. "2020-10-08")
+        state -- upper-case two-letter state abbreviation (e.g. "MN")
+        deaths -- (integer) the number of deaths on this date
+        positive -- (integer) the number of positive COVID-19 tests on this date
+        negative -- (integer) the number of negative COVID-19 tests on this date
+        hospitalizations -- (integer) the number of new hospitalizations for COVID-19 on this date'''
+    try:
+        cursor = connection.cursor()
+        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        cursor.execute(query)
+    except Exception as e:
+        print(e)
+        exit()
+    state_info = {}
+    state_info_list = []
+    for row in cursor:
+        if get_state_abbreviation(row[1]).startswith(abbreviation):
+            state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
+            'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
+            state_info_list.append(state_info)
+    return json.dumps(state_info_list)
+    #maybe this works? but won't find url
 
-@app.route('/help')
-def get_help():
-    help_message = ''
-    with flask.current_app.open_resource('static/help.html', 'r') as f:
-        help_message = f.read()
-    return help_message
+@app.route('/state/{state-abbreviation}/cumulative')
+def get_state_cumulative(abbreviation):
+    '''Returns a single dictionary representing the cumulative statistics for the specified state.
+       start_date -- YYYY-MM-DD (e.g. "2020-10-08")
+       end_date -- YYYY-MM-DD (e.g. "2020-03-11")
+       state -- upper-case two-letter state abbreviation (e.g. "MN")
+       deaths -- (integer) the total number of deaths between the start and end dates (inclusive)
+       positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
+       negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
+       hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
+    try:
+        cursor = connection.cursor()
+        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        cursor.execute(query)
+    except Exception as e:
+        print(e)
+        exit()
+    state_cumulative_info = {}
+    for row in cursor:
+        if get_state_abbreviation(row[1]).startswith(abbreviation):
+            if get_state_abbreviation(row[1]) in state_cumulative_info:
+                state_cumulative_info = {}
+            else:
+                state_cumulative_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': int(row[2]), 
+                'new_positive_tests': int(row[3]), 'new_negative_tests': int(row[4]), 'new_hospitalizations': int(row[5])}
+    return json.dumps(state_cumulative_info)
+    #how to get start_date and end_date??
+    #also how to get cumulatiive?
+
+@app.route('/states/cumulative')
+def get_all_states():
+    '''Returns a list of dictionaries each representing the cumulative COVID-19 statistics for each state. 
+    The dictionaries are sorted in decreasing order of deaths, cases (i.e. positive tests), or hospitalizations,
+    depending on the value of the GET parameter "sort". If sort is not present, then the list will be sorted by deaths.
+    start_date -- YYYY-MM-DD (e.g. "2020-10-08")
+    end_date -- YYYY-MM-DD (e.g. "2020-03-11")
+    state -- upper-case two-letter state abbreviation (e.g. "MN")
+    deaths -- (integer) the total number of deaths between the start and end dates (inclusive)
+    positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
+    negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
+    hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
+    try:
+        cursor = connection.cursor()
+        query = 'SELECT date, state_id, deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        cursor.execute(query)
+    except Exception as e:
+        print(e)
+        exit()
+
+    state_info = {}
+    for row in cursor:
+        state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'new_positive_tests': str(row[3]),
+        'new_negative_tests': str(row[4]), 'new_hospitalizations': str(row[5])}
+  
+    return json.dumps()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('A sample Flask application/API')
