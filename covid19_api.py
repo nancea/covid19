@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''
     covid19_api.py
-
+    author: Claire Schregardus
     16 October 2020
 '''
 import sys
@@ -40,6 +40,43 @@ def get_state_abbreviation(state_id):
     state_abbreviation = abbreviations_dict[state_id]
     return state_abbreviation
 
+def get_cumulative_dictionary(state_abbreviation):
+    try:
+        cursor = connection.cursor()
+        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        cursor.execute(query)
+    except Exception as e:
+        print(e)
+        exit()
+    state_cumulative_info = {}
+    state_list = []
+    date_list = []
+    deaths = 0
+    positive_tests = 0
+    negative_tests = 0
+    hospitalizations = 0
+    for row in cursor:
+        state = get_state_abbreviation(row[1])
+        if state.startswith(state_abbreviation):
+            if state in state_list:
+                deaths += row[2]
+                positive_tests += row[3]
+                negative_tests += row[4]
+                hospitalizations += row[5]
+                date_list.append(row[0])
+            else:
+                deaths = row[2]
+                positive_tests = row[3]
+                negative_tests = row[4]
+                hospitalizations = row[5]
+                state_list.append(state)
+                date_list.append(row[0])
+    start_date = str(date_list[-1])
+    end_date = str(date_list[0])
+    state_cumulative_info = {'start_date': start_date, 'end_date': end_date, 'state': state_abbreviation, 'deaths': deaths, \
+        'positive_tests': positive_tests, 'negative_tests': negative_tests, 'hospitalizations': hospitalizations}
+    return state_cumulative_info
+
 @app.route('/state/<state_abbreviation>/daily')
 def get_state(state_abbreviation):
     ''' Returns a list of dictionaries, each representing the COVID-19 statistics from the specified state on a single date. 
@@ -76,45 +113,12 @@ def get_state_cumulative(state_abbreviation):
        positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
        negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
        hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
-    try:
-        cursor = connection.cursor()
-        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
-        cursor.execute(query)
-    except Exception as e:
-        print(e)
-        exit()
-    state_cumulative_info = {}
-    state_list = []
-    date_list = []
-    deaths = 0
-    positive_tests = 0
-    negative_tests = 0
-    hospitalizations = 0
-    for row in cursor:
-        state = get_state_abbreviation(row[1])
-        if state.startswith(state_abbreviation):
-            if state in state_list:
-                deaths += row[2]
-                positive_tests += row[3]
-                negative_tests += row[4]
-                hospitalizations += row[5]
-                date_list.append(row[0])
-            else:
-                deaths = row[2]
-                positive_tests = row[3]
-                negative_tests = row[4]
-                hospitalizations = row[5]
-                state_list.append(state)
-                date_list.append(row[0])
-    start_date = str(date_list[-1])
-    end_date = str(date_list[0])
-    state_cumulative_info = {'start_date': start_date, 'end_date': end_date, 'state': state_abbreviation, 'deaths': deaths, \
-        'positive_tests': positive_tests, 'negative_tests': negative_tests, 'hospitalizations': hospitalizations}
+    state_cumulative_info = get_cumulative_dictionary(state_abbreviation)
     return json.dumps(state_cumulative_info)
   
 
 @app.route('/states/cumulative')
-def get_all_states():
+def get_all_states_cumulative():
     '''Returns a list of dictionaries each representing the cumulative COVID-19 statistics for each state. 
     The dictionaries are sorted in decreasing order of deaths, cases (i.e. positive tests), or hospitalizations,
     depending on the value of the GET parameter "sort". If sort is not present, then the list will be sorted by deaths.
@@ -125,24 +129,25 @@ def get_all_states():
     positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
     negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
     hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
-    deaths = flask.request.args.get('deaths')
-    cases = flask.request.args.get('cases')
-    hopsitalizations = flask.request.args.get('hospitalizations')
+    deaths_sort = flask.request.args.get('deaths')
+    cases_sort = flask.request.args.get('cases')
+    hopsitalizations_sort = flask.request.args.get('hospitalizations')
+
     try:
         cursor = connection.cursor()
-        query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
+        query = 'SELECT abbreviation FROM states'
         cursor.execute(query)
     except Exception as e:
         print(e)
         exit()
-
-    state_info = {}
+    state_list = []
+    state_dict_list = []
     for row in cursor:
-        state_info = {'date': str(row[0]), 'state': get_state_abbreviation(row[1]), 'deaths': str(row[2]), 'positive_tests': str(row[3]),
-        'negative_tests': str(row[4]), 'hospitalizations': str(row[5])}
-  
-    return json.dumps(state_info)
-    #sorting??
+        state_list.append(row[0])
+    for state in state_list:
+        state_cumulative_info = get_cumulative_dictionary(state)
+        state_dict_list.append(state_cumulative_info)
+    return json.dumps(state_dict_list)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('A sample Flask application/API')
