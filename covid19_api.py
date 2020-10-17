@@ -133,7 +133,6 @@ def get_all_states_cumulative():
     positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
     negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
     hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
-
     try:
         cursor = connection.cursor()
         query = 'SELECT abbreviation FROM states'
