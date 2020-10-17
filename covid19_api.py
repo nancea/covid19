@@ -41,6 +41,7 @@ def get_state_abbreviation(state_id):
     return state_abbreviation
 
 def get_cumulative_dictionary(state_abbreviation):
+    '''Returns a dictionary with cumulative information about a given state'''
     try:
         cursor = connection.cursor()
         query = 'SELECT date, state_id, new_deaths, new_positive_tests, new_negative_tests, new_hospitalizations FROM covid19_days'
@@ -80,6 +81,7 @@ def get_cumulative_dictionary(state_abbreviation):
 @app.route('/state/<state_abbreviation>/daily')
 def get_state(state_abbreviation):
     ''' Returns a list of dictionaries, each representing the COVID-19 statistics from the specified state on a single date. 
+        Each dictionary will have the following fields:
         date -- YYYY-MM-DD (e.g. "2020-10-08")
         state -- upper-case two-letter state abbreviation (e.g. "MN")
         deaths -- (integer) the number of deaths on this date
@@ -105,7 +107,8 @@ def get_state(state_abbreviation):
 
 @app.route('/state/<state_abbreviation>/cumulative')
 def get_state_cumulative(state_abbreviation):
-    '''Returns a single dictionary representing the cumulative statistics for the specified state.
+    '''Returns a single dictionary representing the cumulative statistics for the specified state. 
+       Each dictionary will have the following fields:
        start_date -- YYYY-MM-DD (e.g. "2020-10-08")
        end_date -- YYYY-MM-DD (e.g. "2020-03-11")
        state -- upper-case two-letter state abbreviation (e.g. "MN")
@@ -122,6 +125,7 @@ def get_all_states_cumulative():
     '''Returns a list of dictionaries each representing the cumulative COVID-19 statistics for each state. 
     The dictionaries are sorted in decreasing order of deaths, cases (i.e. positive tests), or hospitalizations,
     depending on the value of the GET parameter "sort". If sort is not present, then the list will be sorted by deaths.
+    Each dictionary will have the following fields:
     start_date -- YYYY-MM-DD (e.g. "2020-10-08")
     end_date -- YYYY-MM-DD (e.g. "2020-03-11")
     state -- upper-case two-letter state abbreviation (e.g. "MN")
@@ -129,9 +133,6 @@ def get_all_states_cumulative():
     positive -- (integer) the number of positive COVID-19 tests between the start and end dates (inclusive)
     negative -- (integer) the number of negative COVID-19 tests between the start and end dates (inclusive)
     hospitalizations -- (integer) the number of hospitalizations between the start and end dates (inclusive)'''
-    deaths_sort = flask.request.args.get('deaths')
-    cases_sort = flask.request.args.get('cases')
-    hopsitalizations_sort = flask.request.args.get('hospitalizations')
 
     try:
         cursor = connection.cursor()
@@ -147,7 +148,19 @@ def get_all_states_cumulative():
     for state in state_list:
         state_cumulative_info = get_cumulative_dictionary(state)
         state_dict_list.append(state_cumulative_info)
-    return json.dumps(state_dict_list)
+
+    if flask.request.args.get('sort') == 'deaths':
+        states_deaths_sort = sorted(state_dict_list, key=lambda k: k['deaths'], reverse=True) 
+        return json.dumps(states_deaths_sort)
+    elif flask.request.args.get('sort') == 'cases':
+        states_cases_sort = sorted(state_dict_list, key=lambda k: k['positive_cases'], reverse=True) 
+        return json.dumps(states_cases_sort)
+    elif flask.request.args.get('sort') == 'hospitalizations':
+        states_hospitalizations_sort = sorted(state_dict_list, key=lambda k: k['hospitalizations'], reverse=True) 
+        return json.dumps(states_hospitalizations_sort)
+    else:
+        states_deaths_sort = sorted(state_dict_list, key=lambda k: k['deaths'], reverse=True) 
+        return json.dumps(states_deaths_sort)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('A sample Flask application/API')
